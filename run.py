@@ -46,6 +46,7 @@ if __name__ == "__main__":
     parser.add_argument('-ab2', '--adam_beta2', type=float, default=0.999)
     parser.add_argument('-bs', '--batch_size', type=int, default=4)
     parser.add_argument('-ni', '--num_iteration', type=int, default=1000)
+    parser.add_argument('-is', '--image_size', type=int, default=224)
     parser.add_argument('-g', '--gpu', type=int, default=0)
     args = parser.parse_args()
 
@@ -61,7 +62,8 @@ if __name__ == "__main__":
                             elevation_max=args.elevation_max, \
                             lambda_style=args.lambda_style, \
                             lambda_content=args.lambda_content, \
-                            lambda_tv=args.lambda_tv)
+                            lambda_tv=args.lambda_tv, \
+                            image_size=args.image_size)
     model.cuda()
 
     lr_vertices = args.lr_vertices
@@ -73,7 +75,7 @@ if __name__ == "__main__":
     optimizer_t = torch.optim.Adam([model.textures], lr=lr_textures, betas=(beta1, beta2))
 
     # optimizing
-    loop = tqdm.tqdm(range(300))
+    loop = tqdm.tqdm(range(args.num_iteration))
     for _ in loop:
         loop.set_description('Optimizing')
         optimizer_v.zero_grad()
