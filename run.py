@@ -2,6 +2,7 @@ from __future__ import division
 import os
 import argparse
 import glob
+from functools import reduce
 
 import torch
 from torch import nn
@@ -90,7 +91,7 @@ if __name__ == "__main__":
     for num, azimuth in enumerate(loop):
         loop.set_description('Drawing')
         model.renderer.eye = nr.get_points_from_angles(2.732, 30, azimuth)
-        images, _, _ = model.render(model.vertices, model.faces, torch.tanh(model.textures))
+        images, _, _ = model.renderer(model.vertices, model.faces, torch.tanh(model.textures))
         image = images.detach().cpu().numpy()[0].transpose((1, 2, 0))
         imsave('/tmp/_tmp_%04d.png' % num, image)
     make_gif(args.filename_output)  
