@@ -17,13 +17,13 @@ import imageio
 import neural_renderer as nr
 from style_transfer_3d import *
 
+
 def make_gif(filename):
     with imageio.get_writer(filename, mode='I') as writer:
         for filename in sorted(glob.glob('/tmp/_tmp_*.png')):
             writer.append_data(imageio.imread(filename))
             os.remove(filename)
     writer.close()
-    return
 
 
 if __name__ == "__main__":
