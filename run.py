@@ -23,6 +23,7 @@ def make_gif(filename):
             writer.append_data(imageio.imread(filename))
             os.remove(filename)
     writer.close()
+    return
 
 
 if __name__ == "__main__":
