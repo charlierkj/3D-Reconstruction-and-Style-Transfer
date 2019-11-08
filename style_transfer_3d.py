@@ -2,6 +2,7 @@ from __future__ import division
 import os
 import argparse
 import glob
+from functools import reduce
 
 import torch
 from torch import nn
@@ -65,9 +66,11 @@ class StyleTransfer3D(nn.Module):
         self.background = image_ref.mean(dim=(0,2,3))
 
         # setup renderer
-        renderer = nr.Renderer(camera_mode='look_at', image_size=self.image_size, \
-                               background_color=self.background)
+        renderer = nr.Renderer(camera_mode='look_at', image_size=self.image_size)
         self.renderer = renderer
+
+    def __device(self):
+        return next(self.parameters()).device
 
     def forward(self, batch_size):
         # set random viewpoints
@@ -84,13 +87,15 @@ class StyleTransfer3D(nn.Module):
         x = torch.ones(batch_size, dtype=torch.float32) * torch.sqrt(torch.tensor(1/3))
         y = torch.ones(batch_size, dtype=torch.float32) * (1/2) * torch.sin(angles * pi /180)
         z = torch.ones(batch_size, dtype=torch.float32) * (1/2) * torch.cos(angles * pi /180)
-        directions = torch.cat((x[:, None], y[:, None], z[:, None]), axis=1).cuda()
+        directions = torch.cat((x[:, None], y[:, None], z[:, None]), axis=1).to(self.__device())
         self.renderer.light_direction = directions
 
         # compute loss
         images, _, _ = self.renderer(self.vertices, self.faces, torch.tanh(self.textures))
         masks = self.renderer(self.vertices, self.faces, mode='silhouettes')
         features = self.vgg_features(images, masks)
+        for i in range(len(self.features_ref)):
+            self.features_ref[i] = self.features_ref[i].to(self.__device())
 
         loss_style = self.style_loss(features)
         loss_content = self.content_loss()
@@ -103,9 +108,8 @@ class StyleTransfer3D(nn.Module):
         return loss
             
     def vgg_features(self, images, masks=None, extractors=[3, 8, 15, 22]):
-        h = images
-        mean = torch.FloatTensor([103.939, 116.779, 123.68])
-        images = images * 255 - mean[None, :, None, None]
+        mean = torch.FloatTensor([103.939, 116.779, 123.68]).to(images.device)
+        h = images * 255 - mean[None, :, None, None]
         features = []
         for i, layer in enumerate(self.vgg.children()):
             h = layer(h)
@@ -124,9 +128,9 @@ class StyleTransfer3D(nn.Module):
             m = m.reshape(m.shape[0], -1)
             f2 = feature.permute(0, 2, 3, 1)
             f2 = f2.reshape(f2.shape[0], -1, f2.shape[-1])
-            f2 *= torch.sqrt(m)[:, :, None]
+            f2 = f2 * m[:, :, None]
             f2 = torch.matmul(f2.permute(0,2,1), f2)
-            f2 /= dim * m.sum(axis=1)[:, None, None]
+            f2 = f2 / (dim * m.sum(axis=1)[:, None, None])
             style_features.append(f2)
 
         return style_features
@@ -143,8 +147,8 @@ class StyleTransfer3D(nn.Module):
         return loss
 
     def tv_loss(self, images, masks):
-        s1 = images[:, :, 1:, :-1] - images[:, :, :-1, :-1]
-        s2 = images[:, :, :-1, 1:] - images[:, :, :-1, :-1]
+        s1 = (images[:, :, 1:, :-1] - images[:, :, :-1, :-1])**2
+        s2 = (images[:, :, :-1, 1:] - images[:, :, :-1, :-1])**2
         masks = masks[:, None, :-1, :-1]
         masks = (masks == 1)
         return torch.sum(masks * (s1 + s2))
