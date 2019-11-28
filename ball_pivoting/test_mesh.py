@@ -15,4 +15,6 @@ if __name__ == "__main__":
     mesh = Mesher(cloud, 0.04)
     mesh.reconstruct()
     print(mesh.facets)
+    print(mesh.edges_front)
+    print(mesh.edges_border)
     utils.save_obj(mesh, 'test.obj')

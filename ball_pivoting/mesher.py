@@ -39,11 +39,14 @@ class Mesher(object):
     def reconstruct(self):
         print("******** Ball radius %.5f ********" % self.ball_radius)
         if len(self.edges_front) == 0:
+            print("Start seeking for seed ...")
             seed = self.find_seed_triangle()
             if seed is None:
                 print("No seed triangle found, triangulation done!")
             else:
-                self.facets.append(seed)
+                print("Seed triangle found.")
+                self.add_facet(seed)
+                self.expand_triangulation()
         else:
             self.expand_triangulation()
 
@@ -85,8 +88,8 @@ class Mesher(object):
     
 
     def expand_triangulation(self):
+        print("Expanding triangulation ...")
         while len(self.edges_front) > 0:
-            print('a')
             e = self.edges_front.pop()
             es = e.source
             et = e.target
@@ -95,13 +98,13 @@ class Mesher(object):
             
             candidate, candidate_ball_center = self.find_candidate(e)
             if (candidate is None) or (candidate.type == 2) or \
-               (not candidae.compatible_with(es, et)):
+               (not candidate.compatible_with(es, et)):
                 e.type = 0
                 self.edges_border.append(e)
                 continue
 
-            e1 = candidate.get_links(e.source)
-            e2 = candidate.get_links(e.target)
+            e1 = candidate.get_links(es)
+            e2 = candidate.get_links(et)
             
             if ((e1 is not None) and (e1.type != 1)) \
                or ((e2 is not None) and (e2.type != 1)):
@@ -112,16 +115,20 @@ class Mesher(object):
             facet = Facet(es, et, candidate, candidate_ball_center)
             self.add_facet(facet)
 
+            e1 = candidate.get_links(es)
+            e2 = candidate.get_links(et)
+
             if e1.type == 1:
                 self.edges_front.append(e1)
 
             if e2.type == 1:
                 self.edges_front.append(e2)
 
-            if self.n_facets % 500 == 0:
+            if self.n_facets % 50 == 0:
                 print(self.n_facets, " facets. ", len(self.edges_front), \
                       " front edges. ", len(self.edges_border), " border edges.")
         self.update_orphans()
+        print("Triangulation done!")
                 
 
     def find_candidate(self, e):
@@ -130,14 +137,15 @@ class Mesher(object):
         es = e.source
         et = e.target
         mp = (es.xyz + et.xyz) / 2
+        opp = e.get_opposite_vertex()
         bc = e.adj_facet1.ball_center
         bc_mp = bc - mp
         r_p = np.linalg.norm(bc_mp) + self.ball_radius
         theta_min = 2 * np.pi
-        [ind, sqdist] = octree.radius_search(tuple(mp), r_p)
+        [ind, sqdist] = self.octree.radius_search(tuple(mp), r_p)
         for i in ind:
             v = self.vertices[i]
-            if (v.type == 2) or (v is es) or (v is et):
+            if (v is opp) or (v is es) or (v is et):
                 continue
             if not v.compatible_with(es, et):
                 continue
@@ -148,10 +156,10 @@ class Mesher(object):
             b = bc_new - mp
             b = b / np.linalg.norm(b)
             theta = np.dot(a, b)
-            v = et.xyz - es.xyz
-            v = v / np.linalg.norm(v)
+            v_d = et.xyz - es.xyz
+            v_d = v_d / np.linalg.norm(v_d)
             c = np.cross(a, b)
-            if np.dot(c, v) < 0:
+            if np.dot(c, v_d) < 0:
                 theta = 2 * np.pi - theta
             if theta > theta_min:
                 continue
