@@ -12,9 +12,7 @@ if __name__ == "__main__":
 
     cloud.from_array(points)
 
-    mesh = Mesher(cloud, 0.04)
-    mesh.reconstruct()
+    mesh = Mesher(cloud, [0.04, 0.02])
+    mesh.reconstruct_with_multi_radius()
     print(mesh.facets)
-    print(mesh.edges_front)
-    print(mesh.edges_border)
     utils.save_obj(mesh, 'test.obj')

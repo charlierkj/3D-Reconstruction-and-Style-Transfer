@@ -21,16 +21,20 @@ class Facet(object):
             self.vertices[i].add_adjacent_facet(self)
             self.vertices[i].update_type()
         self.ball_center = ball_center
+        
 
     def set_ball_center(self, bc):
         self.ball_center = bc
+        
 
     def get_ball_center(self):
         return self.ball_center
+    
 
     def has_vertex(self, v):
         if v in self.vertices:
             return True
         else:
             return False
-        
+
+       

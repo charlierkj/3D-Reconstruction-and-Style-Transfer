@@ -12,9 +12,9 @@ class Mesher(object):
         octree = cloud.make_octreeSearch(0.2)
         octree.add_points_from_input_cloud()
         self.octree = octree
-        #self.seed
         self.vertices = []
         self.orphans = []
+        self.seeds = []
         ne = cloud.make_NormalEstimation()
         ne.set_KSearch(20)
         normals = ne.compute()
@@ -22,47 +22,79 @@ class Mesher(object):
             v = Vertex(np.array(cloud[i]), np.array(normals[i][0:3]), i)
             self.vertices.append(v)
             self.orphans.append(v.type == 0)
+            self.seeds.append(v.seed_candidate == True)
         self.n_vertics = len(self.vertices)
         self.edges_front = []
         self.edges_border = []
         self.facets = []
         self.n_facets = 0
-        self.ball_radius = r
+        if isinstance(r, list):
+            self.radius_list = r
+            self.ball_radius = self.radius_list.pop()
+        else:
+            self.ball_radius = r
         self.sq_ball_radius = self.ball_radius**2
+        
 
     def set_ball_radius(self, r):
         self.ball_radius = r
+        
 
     def get_ball_radius(self, r):
-        return self.ball_radius                              
+        return self.ball_radius
+
 
     def reconstruct(self):
         print("******** Ball radius %.5f ********" % self.ball_radius)
-        if len(self.edges_front) == 0:
-            print("Start seeking for seed ...")
-            seed = self.find_seed_triangle()
-            if seed is None:
-                print("No seed triangle found, triangulation done!")
+        while np.sum(self.seeds) > 0 or len(self.edges_front) > 0:
+            if len(self.edges_front) == 0:
+                print("Start seeking for seed ...")
+                seed = self.find_seed_triangle()
+                if seed is None:
+                    print("No seed triangle found, triangulation done!")
+                else:
+                    print("Seed triangle found.")
+                    self.add_facet(seed)
+                    self.expand_triangulation()
             else:
-                print("Seed triangle found.")
-                self.add_facet(seed)
                 self.expand_triangulation()
-        else:
-            self.expand_triangulation()
+        self.fill_holes()
+            
+
+    def reconstruct_with_multi_radius(self):
+        print("Reconstructing with %d radius ..." % (len(self.radius_list)+1))
+        self.reconstruct()
+        while len(self.radius_list) > 0:
+            for v in self.vertices:
+                if v.type == 0:
+                    v.seed_candidate = True
+            self.update_vertex_status()
+            radius = self.radius_list.pop()
+            self.change_radius(radius)
+            self.reconstruct()
+            
 
     def change_radius(self, r):
         self.ball_radius = r
         self.sq_ball_radius = self.ball_radius**2
+        
 
-    def update_orphans(self):
+    def update_vertex_status(self):
         self.orphans = [(v.type == 0) for v in self.vertices]
+        self.seeds = [(v.seed_candidate == True) for v in self.vertices]
+        
         
     def find_seed_triangle(self):
-        idx_orphans = np.where(self.orphans)[0]
-        p = self.vertices[idx_orphans[0]]
+        idx_seeds = np.where(self.seeds)[0]
+        p = self.vertices[idx_seeds[0]]
+        p.seed_candidate = False
+        self.seeds[idx_seeds[0]] = False
         search_point = tuple(p.xyz)
         radius = 2 * self.ball_radius
         [ind, sqdist] = self.octree.radius_search(search_point, radius)
+        for i in ind:
+            self.vertices[i].seed_candidate = False
+            self.seeds[i] = False
 
         if len(ind) < 3:
             return None
@@ -127,7 +159,7 @@ class Mesher(object):
             if self.n_facets % 50 == 0:
                 print(self.n_facets, " facets. ", len(self.edges_front), \
                       " front edges. ", len(self.edges_border), " border edges.")
-        self.update_orphans()
+        self.update_vertex_status()
         print("Triangulation done!")
                 
 
@@ -207,6 +239,7 @@ class Mesher(object):
             center = h + height * n
             return center
         return None
+    
 
     def compute_normal(self, v0, v1, v2):
         n = np.cross(v1.xyz - v0.xyz, v2.xyz - v0.xyz)
@@ -216,8 +249,27 @@ class Mesher(object):
         if np.dot(n, mn) < 0:
             n = -n
         return n
+    
 
     def add_facet(self, f):
         self.facets.append(f)
         self.n_facets += 1
         
+
+    def fill_holes(self):
+        for e in self.edges_border:
+            if e.type != 0:
+                self.edges_border.remove(e)
+                continue
+            es = e.source
+            et = e.target
+            v = es.find_border(et)
+
+            if v is None:
+                continue
+
+            f = Facet(es, et, v)
+            self.add_facet(f)
+            self.edges_border.remove(e)
+        
+
