@@ -63,6 +63,8 @@ class Vertex(object):
 
     def compatible_with(self, v1, v2):
         nt = np.cross(self.xyz-v1.xyz, v2.xyz-v1.xyz)
+        if np.linalg.norm(nt) == 0:
+            return False
         nt = nt / np.linalg.norm(nt)
         if np.dot(nt, self.n_xyz) < 0:
             nt = -nt

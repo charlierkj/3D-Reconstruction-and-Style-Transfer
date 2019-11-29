@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import pcl
 from vertex import *
@@ -16,14 +17,14 @@ class Mesher(object):
         self.orphans = []
         self.seeds = []
         ne = cloud.make_NormalEstimation()
-        ne.set_KSearch(20)
+        ne.set_KSearch(100)
         normals = ne.compute()
         for i in range(cloud.size):
             v = Vertex(np.array(cloud[i]), np.array(normals[i][0:3]), i)
             self.vertices.append(v)
             self.orphans.append(v.type == 0)
             self.seeds.append(v.seed_candidate == True)
-        self.n_vertics = len(self.vertices)
+        self.n_vertices = len(self.vertices)
         self.edges_front = []
         self.edges_border = []
         self.facets = []
@@ -86,6 +87,7 @@ class Mesher(object):
         
     def find_seed_triangle(self):
         idx_seeds = np.where(self.seeds)[0]
+        print("currently %d seed candidates" % len(idx_seeds))
         p = self.vertices[idx_seeds[0]]
         p.seed_candidate = False
         self.seeds[idx_seeds[0]] = False
@@ -102,9 +104,9 @@ class Mesher(object):
         else:
             ind = ind[np.argsort(sqdist)]
             for i in range(len(ind)-1):
-                q = self.vertices[i]
+                q = self.vertices[ind[i]]
                 for j in range(i+1, len(ind)):
-                    s = self.vertices[j]
+                    s = self.vertices[ind[j]]
                     if not p.compatible_with(q, s):
                         continue
                     bc = self.compute_ball_center(p, q, s)
@@ -169,27 +171,28 @@ class Mesher(object):
         es = e.source
         et = e.target
         mp = (es.xyz + et.xyz) / 2
-        opp = e.get_opposite_vertex()
-        bc = e.adj_facet1.ball_center
-        bc_mp = bc - mp
-        r_p = np.linalg.norm(bc_mp) + self.ball_radius
-        theta_min = 2 * np.pi
+        r_p = self.ball_radius + np.sqrt(self.sq_ball_radius - (es.distance_to(mp))**2)
         [ind, sqdist] = self.octree.radius_search(tuple(mp), r_p)
+        bc = e.adj_facet1.ball_center
+        opp = e.get_opposite_vertex()
+        v_d = et.xyz - es.xyz
+        v_d = v_d / np.linalg.norm(v_d)
+        a = bc - mp
+        a = a / np.linalg.norm(a)
+        theta_min = 2 * np.pi
         for i in ind:
             v = self.vertices[i]
             if (v is opp) or (v is es) or (v is et):
                 continue
-            if not v.compatible_with(es, et):
-                continue
+            #if not v.compatible_with(es, et):
+            #    continue
             bc_new = self.compute_ball_center(es, et, v)
             if bc_new is None:
                 continue
-            a = bc_mp / np.linalg.norm(bc_mp)
             b = bc_new - mp
             b = b / np.linalg.norm(b)
-            theta = np.dot(a, b)
-            v_d = et.xyz - es.xyz
-            v_d = v_d / np.linalg.norm(v_d)
+            cos_theta = np.clip(np.dot(a, b), -1, 1)
+            theta = math.acos(cos_theta)
             c = np.cross(a, b)
             if np.dot(c, v_d) < 0:
                 theta = 2 * np.pi - theta
@@ -257,6 +260,7 @@ class Mesher(object):
         
 
     def fill_holes(self):
+        print("Filling holes ...")
         for e in self.edges_border:
             if e.type != 0:
                 self.edges_border.remove(e)

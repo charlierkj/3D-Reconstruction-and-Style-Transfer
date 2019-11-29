@@ -7,6 +7,9 @@ from mesher import *
 def save_obj(mesh, filename):
     print("Saving mesh to .obj file ...")
     with open(filename, 'w') as file:
+        file.write("# OBJ file format with ext .obj\n")
+        file.write("# vertex count = {0}\n".format(mesh.n_vertices))
+        file.write("# face count = {0}\n".format(mesh.n_facets))
         for v in mesh.vertices:
             file.write("v {0} {1} {2}\n"\
                        .format(v.xyz[0], v.xyz[1], v.xyz[2]))
