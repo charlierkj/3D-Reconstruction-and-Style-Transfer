@@ -17,7 +17,7 @@ class Mesher(object):
         self.orphans = []
         self.seeds = []
         ne = cloud.make_NormalEstimation()
-        ne.set_KSearch(100)
+        ne.set_KSearch(50)
         normals = ne.compute()
         for i in range(cloud.size):
             v = Vertex(np.array(cloud[i]), np.array(normals[i][0:3]), i)
@@ -60,7 +60,7 @@ class Mesher(object):
             else:
                 self.expand_triangulation()
         self.fill_holes()
-            
+
 
     def reconstruct_with_multi_radius(self):
         print("Reconstructing with %d radius ..." % (len(self.radius_list)+1))
@@ -69,6 +69,13 @@ class Mesher(object):
             for v in self.vertices:
                 if v.type == 0:
                     v.seed_candidate = True
+            for e in self.edges_border:
+                if e.type != 0:
+                    self.edges_border.remove(e)
+                    continue
+                e.type = 1
+                self.edges_border.remove(e)
+                self.edges_front.append(e)
             self.update_vertex_status()
             radius = self.radius_list.pop()
             self.change_radius(radius)
@@ -184,8 +191,8 @@ class Mesher(object):
             v = self.vertices[i]
             if (v is opp) or (v is es) or (v is et):
                 continue
-            #if not v.compatible_with(es, et):
-            #    continue
+            if not v.compatible_with(es, et):
+                continue
             bc_new = self.compute_ball_center(es, et, v)
             if bc_new is None:
                 continue
@@ -247,7 +254,7 @@ class Mesher(object):
     def compute_normal(self, v0, v1, v2):
         n = np.cross(v1.xyz - v0.xyz, v2.xyz - v0.xyz)
         n = n / np.linalg.norm(n)
-        mn = v0.xyz + v1.xyz + v2.xyz
+        mn = v0.n_xyz + v1.n_xyz + v2.n_xyz
         mn = mn / np.linalg.norm(mn)
         if np.dot(n, mn) < 0:
             n = -n
@@ -271,7 +278,6 @@ class Mesher(object):
 
             if v is None:
                 continue
-
             f = Facet(es, et, v)
             self.add_facet(f)
             self.edges_border.remove(e)

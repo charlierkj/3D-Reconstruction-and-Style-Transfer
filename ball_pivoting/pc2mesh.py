@@ -39,5 +39,7 @@ if __name__ == "__main__":
         radius = float(args.ball_radius)
         mesh = Mesher(cloud, radius)
         mesh.reconstruct()
-        
+
+    print(np.sum(mesh.orphans))
+    print(len(mesh.edges_border))
     utils.save_obj(mesh, args.output_file)

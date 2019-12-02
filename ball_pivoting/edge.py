@@ -33,17 +33,18 @@ class Edge(object):
 
     def add_adjacent_facet(self, f):
         if (f is self.adj_facet1) or (f is self.adj_facet2):
-            return False
+            return
         if self.adj_facet1 is None:
             self.adj_facet1 = f
+            self.update_orientation()
             self.set_type(1)
-            return True
+            return
         if self.adj_facet2 is None:
             self.adj_facet2 = f
             self.set_type(2)
-            return True
+            return
         print("Already two triangles")
-        return False
+        return
     
 
     def remove_adjacent_facet(self, f):
@@ -65,10 +66,10 @@ class Edge(object):
     
     
     def update_orientation(self):
-        opp = self.get_oppposite_vertex()
+        opp = self.get_opposite_vertex()
         v = np.cross(self.target.xyz-self.source.xyz, opp.xyz-self.source.xyz)
         v = v / np.linalg.norm(v)
-        n = self.source.xyz + self.target.xyz + opp.xyz
+        n = self.source.n_xyz + self.target.n_xyz + opp.n_xyz
         n = n / np.linalg.norm(n)
         if np.dot(v, n) < 0:
             self.source, self.target = self.target, self.source

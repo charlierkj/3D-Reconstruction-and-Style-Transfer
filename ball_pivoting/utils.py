@@ -31,7 +31,7 @@ def read_vertices_from_obj(filename):
     return np.array(points, dtype=np.float32)
 
 def read_vertices_from_json(filename):
-    print("Reading vertices from .yml file ...")
+    print("Reading vertices from .json file ...")
     with open(filename, 'r') as f:
         temp = json.loads(f.read())
         point=temp['Points']
