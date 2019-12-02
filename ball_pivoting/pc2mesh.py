@@ -25,6 +25,8 @@ if __name__ == "__main__":
         points = np.loadtxt(args.input_file)
     elif '.obj' in args.input_file:
         points = utils.read_vertices_from_obj(args.input_file)
+    elif '.json' in args.input_file:
+        points = utils.read_vertices_from_json(args.input_file)
     print("Reading done.")
 
     cloud.from_array(points)
