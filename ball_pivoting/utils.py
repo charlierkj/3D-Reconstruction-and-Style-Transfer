@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pcl
 from mesher import *
+import json
 
 
 def save_obj(mesh, filename):
@@ -28,3 +29,10 @@ def read_vertices_from_obj(filename):
             if items[0] == 'v':
                 points.append([float(items[1]), float(items[2]), float(items[3])])
     return np.array(points, dtype=np.float32)
+
+def read_vertices_from_jeson(filename):
+    print("Reading vertices from .obj file ...")
+    with open(filename, 'r') as f:
+        temp = json.loads(f.read())
+        point=temp['Points']
+    return np.array(point, dtype=np.float32)
