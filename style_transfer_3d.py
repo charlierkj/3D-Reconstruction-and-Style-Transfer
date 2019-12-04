@@ -91,7 +91,7 @@ class StyleTransfer3D(nn.Module):
         self.renderer.light_direction = directions
 
         # compute loss
-        images, _, _ = self.renderer(self.vertices, self.faces, torch.tanh(self.textures))
+        images, _, _ = self.renderer(self.vertices, self.faces, torch.sigmoid(self.textures))
         masks = self.renderer(self.vertices, self.faces, mode='silhouettes')
         features = self.vgg_features(images, masks)
         for i in range(len(self.features_ref)):
@@ -108,7 +108,7 @@ class StyleTransfer3D(nn.Module):
         return loss
             
     def vgg_features(self, images, masks=None, extractors=[3, 8, 15, 22]):
-        mean = torch.FloatTensor([103.939, 116.779, 123.68]).to(images.device)
+        mean = torch.FloatTensor([123.68, 116.779, 103.939]).to(images.device)
         h = images * 255 - mean[None, :, None, None]
         features = []
         for i, layer in enumerate(self.vgg.children()):
