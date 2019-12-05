@@ -20,7 +20,7 @@ def save_obj(mesh, filename):
     print("Done!")
 
 
-def read_vertices_from_obj(filename):
+def read_vertices_from_obj(filename, savefile=None):
     print("Reading vertices from .obj file ...")
     points = []
     with open(filename, 'r') as file:
@@ -28,7 +28,15 @@ def read_vertices_from_obj(filename):
             items = line.split(' ')
             if items[0] == 'v':
                 points.append([float(items[1]), float(items[2]), float(items[3])])
+    if not savefile is None:
+        if '.obj' in savefile:
+            with open(savefile, 'w') as file:
+                for p in points:
+                    file.write("v {0} {1} {2}".format(p[0], p[1], p[2]))
+        elif '.txt' in savefile:
+            np.savetxt(savefile, points)
     return np.array(points, dtype=np.float32)
+
 
 def read_vertices_from_json(filename):
     print("Reading vertices from .json file ...")

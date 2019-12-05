@@ -17,7 +17,7 @@ class Mesher(object):
         self.orphans = []
         self.seeds = []
         ne = cloud.make_NormalEstimation()
-        ne.set_KSearch(50)
+        ne.set_KSearch(20)
         normals = ne.compute()
         for i in range(cloud.size):
             v = Vertex(np.array(cloud[i]), np.array(normals[i][0:3]), i)
